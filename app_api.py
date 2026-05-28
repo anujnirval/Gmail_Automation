@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import email.utils
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +25,7 @@ from gmail_cleanup import (
 
 RULES_FILE = ROOT / "rules.yml"
 HISTORY_FILE = ROOT / "cleanup_history.jsonl"
+UNSUBSCRIBE_HISTORY_FILE = ROOT / "unsubscribe_history.jsonl"
 
 app = FastAPI(title="Gmail Cleanup API")
 app.add_middleware(
@@ -71,6 +74,15 @@ class LabelTrashRequest(BaseModel):
 class UnsubscribeRequest(BaseModel):
     query: str = "in:inbox"
     limit: int = Field(default=200, ge=1, le=500)
+
+
+class UnsubscribeArchiveRequest(BaseModel):
+    company_key: str
+    company: str
+    from_address: str = ""
+    target: str = ""
+    latest_message_date: str = ""
+    confirmation: str
 
 
 def rule_id(index: int, rule: Rule) -> str:
@@ -169,6 +181,45 @@ def parse_unsubscribe_header(value: str) -> list[str]:
     return targets
 
 
+def sender_domain(sender: str) -> str:
+    address = email.utils.parseaddr(sender)[1].lower()
+    if "@" in address:
+        return address.rsplit("@", 1)[1]
+    return sender.lower()
+
+
+def company_from_sender(sender: str) -> str:
+    name, address = email.utils.parseaddr(sender)
+    if name:
+        return name.strip().strip('"')
+    domain = address.rsplit("@", 1)[-1] if "@" in address else sender
+    parts = domain.split(".")
+    if len(parts) >= 2:
+        return parts[-2].replace("-", " ").title()
+    return domain
+
+
+def parse_email_date(value: str) -> str:
+    parsed = email.utils.parsedate_to_datetime(value) if value else None
+    if not parsed:
+        return ""
+    if not parsed.tzinfo:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed.astimezone(dt.timezone.utc).isoformat()
+
+
+def load_unsubscribe_history() -> dict[str, dict[str, Any]]:
+    history: dict[str, dict[str, Any]] = {}
+    if not UNSUBSCRIBE_HISTORY_FILE.exists():
+        return history
+    for line in UNSUBSCRIBE_HISTORY_FILE.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        entry = json.loads(line)
+        history[entry["companyKey"]] = entry
+    return history
+
+
 @app.get("/api/health")
 def health() -> dict[str, bool]:
     return {
@@ -208,6 +259,7 @@ def unsubscribe_candidates(request: UnsubscribeRequest) -> dict[str, Any]:
     service = get_service()
     ids = list_message_ids(service, request.query, request.limit)
     grouped: dict[str, dict[str, Any]] = {}
+    history = load_unsubscribe_history()
 
     for message_id in ids:
         response = (
@@ -236,19 +288,32 @@ def unsubscribe_candidates(request: UnsubscribeRequest) -> dict[str, Any]:
             continue
 
         sender = headers.get("from", "")
-        key = f"{sender}|{targets[0]}"
+        key = sender_domain(sender)
+        latest_date = parse_email_date(headers.get("date", ""))
         item = grouped.setdefault(
             key,
             {
                 "id": key,
+                "companyKey": key,
+                "company": company_from_sender(sender),
                 "from": sender,
-                "targets": targets,
-                "oneClick": "one-click" in headers.get("list-unsubscribe-post", "").lower(),
+                "domains": sorted({key}),
+                "targets": [],
+                "oneClick": False,
                 "count": 0,
                 "samples": [],
+                "latestMessageDate": "",
+                "previouslyUnsubscribed": history.get(key),
+                "hasNewAfterUnsubscribe": False,
             },
         )
         item["count"] += 1
+        item["targets"] = sorted(set(item["targets"]) | set(targets))
+        item["oneClick"] = item["oneClick"] or "one-click" in headers.get("list-unsubscribe-post", "").lower()
+        if latest_date and latest_date > item["latestMessageDate"]:
+            item["latestMessageDate"] = latest_date
+        if history.get(key) and latest_date and latest_date > history[key].get("timestamp", ""):
+            item["hasNewAfterUnsubscribe"] = True
         if len(item["samples"]) < 3:
             item["samples"].append(
                 {
@@ -257,8 +322,35 @@ def unsubscribe_candidates(request: UnsubscribeRequest) -> dict[str, Any]:
                 }
             )
 
-    candidates = sorted(grouped.values(), key=lambda item: item["count"], reverse=True)
-    return {"query": request.query, "scanned": len(ids), "candidates": candidates}
+    active = []
+    archived = []
+    for item in grouped.values():
+        if item["previouslyUnsubscribed"] and not item["hasNewAfterUnsubscribe"]:
+            archived.append(item)
+        else:
+            active.append(item)
+
+    active.sort(key=lambda item: item["count"], reverse=True)
+    archived.sort(key=lambda item: item["previouslyUnsubscribed"].get("timestamp", ""), reverse=True)
+    return {"query": request.query, "scanned": len(ids), "candidates": active, "archived": archived}
+
+
+@app.post("/api/unsubscribe/archive")
+def archive_unsubscribe(request: UnsubscribeArchiveRequest) -> dict[str, Any]:
+    if request.confirmation != "UNSUBSCRIBED":
+        raise HTTPException(status_code=400, detail="Type UNSUBSCRIBED to confirm.")
+
+    entry = {
+        "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "companyKey": request.company_key,
+        "company": request.company,
+        "fromAddress": request.from_address,
+        "target": request.target,
+        "latestMessageDate": request.latest_message_date,
+    }
+    with UNSUBSCRIBE_HISTORY_FILE.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(entry) + "\n")
+    return {"archived": entry}
 
 
 @app.get("/api/labels/{label_id}/sample")

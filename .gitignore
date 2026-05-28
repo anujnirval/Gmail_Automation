@@ -10,3 +10,4 @@ credentials.json
 token.json
 rules.yml
 cleanup_history.jsonl
+unsubscribe_history.jsonl

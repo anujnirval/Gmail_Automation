@@ -12,6 +12,7 @@ OAuth desktop client. It includes:
 - Local rule storage in `rules.yml`.
 - Local operation history in `cleanup_history.jsonl`.
 - Unsubscribe discovery for messages with standard unsubscribe headers.
+- Local unsubscribe archive in `unsubscribe_history.jsonl`.
 
 ## Screenshots
 
@@ -295,6 +296,11 @@ The app opens the sender-provided unsubscribe URL or `mailto:` target in your
 browser. It does not auto-submit unsubscribe forms because providers often use
 confirmation pages and account-specific tokens.
 
+Candidates are grouped by sender domain/company. After completing an
+unsubscribe flow, click **Mark unsubscribed**. The company moves to the archive
+and stays hidden on future scans unless newer matching email appears after the
+unsubscribe timestamp.
+
 ### History
 
 Shows local history of rule apply and label trash actions.
@@ -401,6 +407,7 @@ credentials.json
 token.json
 rules.yml
 cleanup_history.jsonl
+unsubscribe_history.jsonl
 web/node_modules/
 web/dist/
 ```

@@ -686,6 +686,11 @@ nav .nav-active {
   box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.14);
 }
 
+.unsubscribe-card-archived {
+  background: #f8fafb;
+  color: #526273;
+}
+
 .unsubscribe-card-head {
   align-items: flex-start;
   display: grid;
@@ -717,6 +722,13 @@ nav .nav-active {
   margin-top: 12px;
 }
 
+.unsubscribe-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .unsubscribe-targets a {
   background: #f3f7fa;
   border: 1px solid #dfe7ed;
@@ -727,6 +739,22 @@ nav .nav-active {
   overflow-wrap: anywhere;
   padding: 8px 10px;
   text-decoration: none;
+}
+
+.unsubscribe-archive {
+  border-top: 1px solid #e4edf3;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.unsubscribe-archive h3 {
+  font-size: 17px;
+  margin: 0;
+}
+
+.unsubscribe-archive > p {
+  color: #6b7c8f;
+  margin: 5px 0 14px;
 }
 
 .label-actions {

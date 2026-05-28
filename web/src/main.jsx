@@ -55,6 +55,7 @@ function App() {
   const [labelFilter, setLabelFilter] = useState("");
   const [unsubscribeQuery, setUnsubscribeQuery] = useState("in:inbox");
   const [unsubscribeCandidates, setUnsubscribeCandidates] = useState([]);
+  const [unsubscribeArchived, setUnsubscribeArchived] = useState([]);
   const [unsubscribeSelected, setUnsubscribeSelected] = useState(new Set());
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
@@ -209,6 +210,7 @@ function App() {
         body: JSON.stringify({ query: unsubscribeQuery, limit }),
       });
       setUnsubscribeCandidates(data.candidates);
+      setUnsubscribeArchived(data.archived || []);
       setUnsubscribeSelected(new Set());
     } catch (err) {
       setError(err.message);
@@ -231,6 +233,35 @@ function App() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+
+  async function markUnsubscribed(candidate) {
+    setLoading(`archive-unsubscribe-${candidate.id}`);
+    setError("");
+    try {
+      await api("/api/unsubscribe/archive", {
+        method: "POST",
+        body: JSON.stringify({
+          company_key: candidate.companyKey,
+          company: candidate.company,
+          from_address: candidate.from,
+          target: candidate.targets[0] || "",
+          latest_message_date: candidate.latestMessageDate || "",
+          confirmation: "UNSUBSCRIBED",
+        }),
+      });
+      setUnsubscribeCandidates((current) => current.filter((item) => item.id !== candidate.id));
+      setUnsubscribeArchived((current) => [{ ...candidate, previouslyUnsubscribed: { timestamp: new Date().toISOString() } }, ...current]);
+      setUnsubscribeSelected((current) => {
+        const next = new Set(current);
+        next.delete(candidate.id);
+        return next;
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading("");
+    }
   }
 
   const selectedRules = useMemo(() => rules.filter((rule) => selected.has(rule.id)), [rules, selected]);
@@ -322,8 +353,10 @@ function App() {
             loading={loading}
             scan={scanUnsubscribe}
             candidates={unsubscribeCandidates}
+            archived={unsubscribeArchived}
             selected={unsubscribeSelected}
             toggle={toggleUnsubscribeCandidate}
+            markUnsubscribed={markUnsubscribed}
           />
         )}
 
@@ -664,7 +697,7 @@ function LabelsView({ labels, loadLabels, loading, filter, setFilter, samples, l
   );
 }
 
-function UnsubscribeView({ query, setQuery, limit, setLimit, loading, scan, candidates, selected, toggle }) {
+function UnsubscribeView({ query, setQuery, limit, setLimit, loading, scan, candidates, archived, selected, toggle, markUnsubscribed }) {
   const selectedCandidates = candidates.filter((item) => selected.has(item.id));
 
   function openSelected() {
@@ -707,8 +740,8 @@ function UnsubscribeView({ query, setQuery, limit, setLimit, loading, scan, cand
             <label className="unsubscribe-card-head">
               <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} />
               <span>
-                <strong>{item.from}</strong>
-                <small>{item.count} message(s) found {item.oneClick ? "with one-click support" : ""}</small>
+                <strong>{item.company}</strong>
+                <small>{item.count} message(s) from {item.companyKey} {item.oneClick ? "with one-click support" : ""}</small>
               </span>
             </label>
             <div className="unsubscribe-targets">
@@ -716,10 +749,35 @@ function UnsubscribeView({ query, setQuery, limit, setLimit, loading, scan, cand
                 <a key={target} href={target} target="_blank" rel="noreferrer">{target}</a>
               ))}
             </div>
+            <div className="unsubscribe-card-actions">
+              <button onClick={() => markUnsubscribed(item)} disabled={loading === `archive-unsubscribe-${item.id}`}>
+                {loading === `archive-unsubscribe-${item.id}` ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+                Mark unsubscribed
+              </button>
+            </div>
             <SampleList samples={item.samples.map((sample, index) => ({ ...sample, id: `${item.id}-${index}`, from: item.from }))} />
           </article>
         ))}
       </div>
+
+      {archived.length > 0 && (
+        <div className="unsubscribe-archive">
+          <h3>Archived unsubscribed companies</h3>
+          <p>Hidden from active results unless a newer matching email appears after the unsubscribe timestamp.</p>
+          <div className="unsubscribe-list">
+            {archived.map((item) => (
+              <article className="unsubscribe-card unsubscribe-card-archived" key={`archived-${item.id}`}>
+                <strong>{item.company}</strong>
+                <small>
+                  {item.count} scanned message(s) from {item.companyKey}. Last marked unsubscribed{" "}
+                  {item.previouslyUnsubscribed?.timestamp ? new Date(item.previouslyUnsubscribed.timestamp).toLocaleString() : "earlier"}.
+                </small>
+                {item.hasNewAfterUnsubscribe && <span className="mini-badge">New mail after unsubscribe</span>}
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
