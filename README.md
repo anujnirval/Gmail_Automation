@@ -87,7 +87,7 @@ To fix it:
 4. Add the Gmail account you will clean, for example:
 
    ```text
-   your.name@gmail.com
+   user@example.com
    ```
 
 5. Save.
@@ -109,7 +109,7 @@ To fix it:
 8. Place it in this folder:
 
    ```text
-   C:\Users\anujn\Documents\Gmail_Automation\credentials.json
+   C:\path\to\Gmail_Automation\credentials.json
    ```
 
 ## Local Setup
@@ -117,14 +117,14 @@ To fix it:
 From the project root:
 
 ```powershell
-cd C:\Users\anujn\Documents\Gmail_Automation
+cd C:\path\to\Gmail_Automation
 uv sync --system-certs
 ```
 
 Install frontend dependencies:
 
 ```powershell
-cd C:\Users\anujn\Documents\Gmail_Automation\web
+cd C:\path\to\Gmail_Automation\web
 npm install
 ```
 
@@ -144,14 +144,14 @@ Open two terminals.
 Terminal 1, backend:
 
 ```powershell
-cd C:\Users\anujn\Documents\Gmail_Automation
+cd C:\path\to\Gmail_Automation
 uv run --system-certs uvicorn app_api:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Terminal 2, frontend:
 
 ```powershell
-cd C:\Users\anujn\Documents\Gmail_Automation\web
+cd C:\path\to\Gmail_Automation\web
 npm run dev
 ```
 
@@ -202,10 +202,10 @@ Recommended company-domain pattern:
 (from:company.com OR to:company.com OR cc:company.com)
 ```
 
-NPCI example:
+Organization domain example:
 
 ```text
-(from:npci.org.in OR to:npci.org.in OR cc:npci.org.in)
+(from:example.org OR to:example.org OR cc:example.org)
 ```
 
 Only emails with attachments:
