@@ -12,6 +12,46 @@ OAuth desktop client. It includes:
 - Local rule storage in `rules.yml`.
 - Local operation history in `cleanup_history.jsonl`.
 
+## Screenshots
+
+Desktop dashboard:
+
+![Gmail Automation desktop dashboard](docs/screenshots/dashboard-desktop.png)
+
+Mobile layout:
+
+![Gmail Automation mobile dashboard](docs/screenshots/dashboard-mobile.png)
+
+## Requirements
+
+Install these before setup:
+
+- Windows, macOS, or Linux with a modern browser.
+- Python `3.11` or newer.
+- [`uv`](https://docs.astral.sh/uv/) for Python dependency management.
+- Node.js `20` or newer and npm.
+- A Google Cloud project with Gmail API enabled.
+- A Google OAuth desktop client saved locally as `credentials.json`.
+
+Python dependencies are declared in `pyproject.toml`:
+
+- `fastapi`
+- `google-api-python-client`
+- `google-auth-httplib2`
+- `google-auth-oauthlib`
+- `PyYAML`
+- `truststore`
+- `uvicorn[standard]`
+
+Frontend dependencies are declared in `web/package.json`:
+
+- `@vitejs/plugin-react`
+- `lucide-react`
+- `react`
+- `react-dom`
+- `typescript`
+- `vite`
+
 ## Safety Model
 
 The app is designed to preview before changing mail.
@@ -277,6 +317,7 @@ uv run --system-certs python gmail_cleanup.py apply --rules rules.yml --limit 50
 .
 |-- app_api.py           FastAPI backend for local dashboard
 |-- gmail_cleanup.py     Gmail API and CLI logic
+|-- docs/screenshots/    Public-safe UI screenshots
 |-- pyproject.toml       Python dependencies managed by uv
 |-- rules.example.yml    Shareable example rules
 |-- rules.yml            Your private local rules, gitignored
@@ -336,3 +377,13 @@ cleanup_history.jsonl
 web/node_modules/
 web/dist/
 ```
+
+## Contributing
+
+Issues and pull requests are welcome. Anyone can open an issue or propose a
+pull request, but changes are reviewed and merged by the repository owner or
+maintainers. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
