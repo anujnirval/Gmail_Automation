@@ -1,0 +1,12 @@
+.venv/
+.idea/
+__pycache__/
+*.py[cod]
+web/node_modules/
+web/dist/
+web/.npm-cache/
+
+credentials.json
+token.json
+rules.yml
+cleanup_history.jsonl

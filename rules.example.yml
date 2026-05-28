@@ -1,0 +1,29 @@
+# Rules are evaluated independently. A message can match multiple rules.
+# Keep query scopes narrow until you trust the behavior.
+
+rules:
+  - name: archive old promotions
+    query: "in:inbox category:promotions older_than:30d"
+    actions:
+      - archive
+      - mark_read
+      - label: "Cleanup/Promotions"
+
+  - name: archive old social updates
+    query: "in:inbox category:social older_than:30d"
+    actions:
+      - archive
+      - mark_read
+      - label: "Cleanup/Social"
+
+  - name: label newsletters
+    query: "in:inbox (list:* OR subject:(newsletter)) older_than:14d"
+    actions:
+      - label: "Cleanup/Newsletters"
+
+  # Example sender rule:
+  # - name: trash unwanted sender
+  #   query: "in:inbox from:example.com older_than:7d"
+  #   actions:
+  #     - trash
+
