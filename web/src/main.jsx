@@ -12,6 +12,7 @@ import {
   Inbox,
   Loader2,
   MailCheck,
+  MousePointerClick,
   Pencil,
   Play,
   Plus,
@@ -35,6 +36,7 @@ const views = [
   { id: "run", label: "Run Rules", icon: Play },
   { id: "rules", label: "Rules", icon: Settings },
   { id: "labels", label: "Labels", icon: FolderOpen },
+  { id: "unsubscribe", label: "Unsubscribe", icon: MousePointerClick },
   { id: "history", label: "History", icon: Clock3 },
 ];
 
@@ -51,6 +53,9 @@ function App() {
   const [history, setHistory] = useState([]);
   const [labelSamples, setLabelSamples] = useState({});
   const [labelFilter, setLabelFilter] = useState("");
+  const [unsubscribeQuery, setUnsubscribeQuery] = useState("in:inbox");
+  const [unsubscribeCandidates, setUnsubscribeCandidates] = useState([]);
+  const [unsubscribeSelected, setUnsubscribeSelected] = useState(new Set());
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState(null);
@@ -195,8 +200,33 @@ function App() {
     }
   }
 
+  async function scanUnsubscribe() {
+    setLoading("unsubscribe");
+    setError("");
+    try {
+      const data = await api("/api/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ query: unsubscribeQuery, limit }),
+      });
+      setUnsubscribeCandidates(data.candidates);
+      setUnsubscribeSelected(new Set());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading("");
+    }
+  }
+
   function toggleRule(id) {
     setSelected((current) => {
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleUnsubscribeCandidate(id) {
+    setUnsubscribeSelected((current) => {
       const next = new Set(current);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -283,6 +313,20 @@ function App() {
           />
         )}
 
+        {view === "unsubscribe" && (
+          <UnsubscribeView
+            query={unsubscribeQuery}
+            setQuery={setUnsubscribeQuery}
+            limit={limit}
+            setLimit={setLimit}
+            loading={loading}
+            scan={scanUnsubscribe}
+            candidates={unsubscribeCandidates}
+            selected={unsubscribeSelected}
+            toggle={toggleUnsubscribeCandidate}
+          />
+        )}
+
         {view === "history" && <HistoryView history={history} />}
       </section>
 
@@ -305,6 +349,7 @@ function pageSubtitle(view) {
   if (view === "run") return "Select rules, preview matched messages, then apply a limited batch.";
   if (view === "rules") return "Create address-domain rules, add attachment filters, and choose actions.";
   if (view === "labels") return "Browse Gmail labels, inspect samples, and move label mail to Trash.";
+  if (view === "unsubscribe") return "Find senders with standard unsubscribe headers and open their unsubscribe flows.";
   return "Review local apply and trash operations.";
 }
 
@@ -612,6 +657,66 @@ function LabelsView({ labels, loadLabels, loading, filter, setFilter, samples, l
               </button>
             </div>
             <SampleList samples={samples[label.id] || []} />
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function UnsubscribeView({ query, setQuery, limit, setLimit, loading, scan, candidates, selected, toggle }) {
+  const selectedCandidates = candidates.filter((item) => selected.has(item.id));
+
+  function openSelected() {
+    selectedCandidates.forEach((item) => {
+      const target = item.targets.find((value) => value.startsWith("http")) || item.targets[0];
+      if (target) window.open(target, "_blank", "noopener,noreferrer");
+    });
+  }
+
+  return (
+    <section className="panel unsubscribe-panel">
+      <div className="unsubscribe-toolbar">
+        <label>
+          Gmail search
+          <input value={query} onChange={(e) => setQuery(e.target.value)} />
+        </label>
+        <label>
+          Scan limit
+          <input type="number" min="1" max="500" value={limit} onChange={(e) => setLimit(Number(e.target.value))} />
+        </label>
+        <button className="primary" onClick={scan} disabled={loading === "unsubscribe"}>
+          {loading === "unsubscribe" ? <Loader2 className="spin" size={18} /> : <Search size={18} />}
+          Scan
+        </button>
+        <button onClick={openSelected} disabled={!selected.size}>
+          <MousePointerClick size={18} />
+          Open selected
+        </button>
+      </div>
+
+      <div className="unsubscribe-list">
+        {candidates.length === 0 && (
+          <div className="empty-state">
+            <MousePointerClick size={32} />
+            <p>Scan messages to find senders that publish unsubscribe links.</p>
+          </div>
+        )}
+        {candidates.map((item) => (
+          <article className={`unsubscribe-card ${selected.has(item.id) ? "unsubscribe-card-active" : ""}`} key={item.id}>
+            <label className="unsubscribe-card-head">
+              <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} />
+              <span>
+                <strong>{item.from}</strong>
+                <small>{item.count} message(s) found {item.oneClick ? "with one-click support" : ""}</small>
+              </span>
+            </label>
+            <div className="unsubscribe-targets">
+              {item.targets.map((target) => (
+                <a key={target} href={target} target="_blank" rel="noreferrer">{target}</a>
+              ))}
+            </div>
+            <SampleList samples={item.samples.map((sample, index) => ({ ...sample, id: `${item.id}-${index}`, from: item.from }))} />
           </article>
         ))}
       </div>

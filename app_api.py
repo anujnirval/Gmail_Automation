@@ -68,6 +68,11 @@ class LabelTrashRequest(BaseModel):
     confirmation: str
 
 
+class UnsubscribeRequest(BaseModel):
+    query: str = "in:inbox"
+    limit: int = Field(default=200, ge=1, le=500)
+
+
 def rule_id(index: int, rule: Rule) -> str:
     slug = "".join(char.lower() if char.isalnum() else "-" for char in rule.name)
     return f"{index}-{slug.strip('-')}"
@@ -153,6 +158,17 @@ def list_message_ids_for_label(service, label_id: str, limit: int) -> list[str]:
     return ids[:limit]
 
 
+def parse_unsubscribe_header(value: str) -> list[str]:
+    targets = []
+    for part in value.split(","):
+        cleaned = part.strip()
+        if cleaned.startswith("<") and cleaned.endswith(">"):
+            cleaned = cleaned[1:-1].strip()
+        if cleaned.startswith(("http://", "https://", "mailto:")):
+            targets.append(cleaned)
+    return targets
+
+
 @app.get("/api/health")
 def health() -> dict[str, bool]:
     return {
@@ -185,6 +201,64 @@ def get_labels() -> dict[str, Any]:
         )
     labels.sort(key=lambda item: (item["type"] != "user", item["name"].lower()))
     return {"labels": labels}
+
+
+@app.post("/api/unsubscribe")
+def unsubscribe_candidates(request: UnsubscribeRequest) -> dict[str, Any]:
+    service = get_service()
+    ids = list_message_ids(service, request.query, request.limit)
+    grouped: dict[str, dict[str, Any]] = {}
+
+    for message_id in ids:
+        response = (
+            service.users()
+            .messages()
+            .get(
+                userId="me",
+                id=message_id,
+                format="metadata",
+                metadataHeaders=[
+                    "From",
+                    "Subject",
+                    "Date",
+                    "List-Unsubscribe",
+                    "List-Unsubscribe-Post",
+                ],
+            )
+            .execute()
+        )
+        headers = {
+            header["name"].lower(): header.get("value", "")
+            for header in response.get("payload", {}).get("headers", [])
+        }
+        targets = parse_unsubscribe_header(headers.get("list-unsubscribe", ""))
+        if not targets:
+            continue
+
+        sender = headers.get("from", "")
+        key = f"{sender}|{targets[0]}"
+        item = grouped.setdefault(
+            key,
+            {
+                "id": key,
+                "from": sender,
+                "targets": targets,
+                "oneClick": "one-click" in headers.get("list-unsubscribe-post", "").lower(),
+                "count": 0,
+                "samples": [],
+            },
+        )
+        item["count"] += 1
+        if len(item["samples"]) < 3:
+            item["samples"].append(
+                {
+                    "subject": headers.get("subject", ""),
+                    "date": headers.get("date", ""),
+                }
+            )
+
+    candidates = sorted(grouped.values(), key=lambda item: item["count"], reverse=True)
+    return {"query": request.query, "scanned": len(ids), "candidates": candidates}
 
 
 @app.get("/api/labels/{label_id}/sample")

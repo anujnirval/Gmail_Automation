@@ -643,9 +643,90 @@ nav .nav-active {
 }
 
 .labels-panel,
+.unsubscribe-panel,
 .history-panel-full {
   margin: 0 auto;
   max-width: 1500px;
+}
+
+.unsubscribe-panel {
+  padding: 16px;
+}
+
+.unsubscribe-toolbar {
+  align-items: end;
+  border-bottom: 1px solid #e4edf3;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(260px, 1fr) 140px auto auto;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+}
+
+.unsubscribe-toolbar label {
+  color: #627386;
+  display: grid;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.unsubscribe-list {
+  display: grid;
+  gap: 12px;
+}
+
+.unsubscribe-card {
+  border: 1px solid #dfe7ed;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.unsubscribe-card-active {
+  border-color: #176b87;
+  box-shadow: 0 0 0 3px rgba(23, 107, 135, 0.14);
+}
+
+.unsubscribe-card-head {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.unsubscribe-card-head input {
+  min-height: auto;
+  margin-top: 3px;
+  width: auto;
+}
+
+.unsubscribe-card-head strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.unsubscribe-card-head small {
+  color: #6b7c8f;
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.unsubscribe-targets {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.unsubscribe-targets a {
+  background: #f3f7fa;
+  border: 1px solid #dfe7ed;
+  border-radius: 8px;
+  color: #176b87;
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  text-decoration: none;
 }
 
 .label-actions {
@@ -731,7 +812,7 @@ nav .nav-active {
   }
 
   nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   nav button {
@@ -746,6 +827,7 @@ nav .nav-active {
 
   .page-header,
   .labels-toolbar,
+  .unsubscribe-toolbar,
   .rule-card-summary,
   .editor-grid,
   .rule-options-grid,

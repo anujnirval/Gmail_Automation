@@ -11,6 +11,7 @@ OAuth desktop client. It includes:
 - CLI fallback for scripted analysis and cleanup.
 - Local rule storage in `rules.yml`.
 - Local operation history in `cleanup_history.jsonl`.
+- Unsubscribe discovery for messages with standard unsubscribe headers.
 
 ## Screenshots
 
@@ -267,6 +268,32 @@ Use this page to inspect existing Gmail labels.
 
 The active label is highlighted and moved to the top while a label action is in
 progress or after samples are loaded.
+
+### Unsubscribe
+
+Use this page to find senders that publish a standard `List-Unsubscribe` email
+header.
+
+1. Enter a Gmail search, for example:
+
+   ```text
+   in:inbox
+   ```
+
+   or:
+
+   ```text
+   category:promotions newer_than:1y
+   ```
+
+2. Choose a scan limit.
+3. Click **Scan**.
+4. Select senders you want to unsubscribe from.
+5. Click **Open selected**.
+
+The app opens the sender-provided unsubscribe URL or `mailto:` target in your
+browser. It does not auto-submit unsubscribe forms because providers often use
+confirmation pages and account-specific tokens.
 
 ### History
 
